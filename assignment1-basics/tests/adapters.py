@@ -557,7 +557,16 @@ def get_tokenizer(
     Returns:
         A BPE tokenizer that uses the provided vocab, merges, and special tokens.
     """
-    raise NotImplementedError
+    from cs336_basics.bpe import BPE
+
+    return BPE(
+        input_path="",
+        vocab_size=len(vocab),
+        special_tokens=special_tokens or [],
+        num_precessor=6,
+        vocab=vocab,
+        merges=merges,
+    )
 
 
 def run_train_bpe(
@@ -587,93 +596,7 @@ def run_train_bpe(
                 representing that <token1> was merged with <token2>.
                 Merges are ordered by order of creation.
     """
-    import regex as re
-    from collections import defaultdict
+    from cs336_basics.bpe import BPE
 
-    # GPT-2 pre-tokenization pattern
-    PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
-
-    # Read the input text
-    text = open(input_path, "rb").read().decode("utf-8", errors="replace")
-
-    # Pre-tokenize
-    words = re.findall(PAT, text)
-
-    # Build initial token sequences for each word
-    # Each word is a tuple of bytes (each byte is a token initially)
-    word_tokens = []
-    for word in words:
-        word_bytes = word.encode("utf-8")
-        word_tokens.append(tuple(bytes([b]) for b in word_bytes))
-
-    # Count frequencies of each word
-    word_freqs = defaultdict(int)
-    for tokens in word_tokens:
-        word_freqs[tokens] += 1
-
-    # Build initial vocabulary with all 256 bytes
-    vocab = {i: bytes([i]) for i in range(256)}
-    for i, token in enumerate(special_tokens):
-        vocab[256 + i] = token.encode("utf-8")
-
-    merges = []
-    num_merges = vocab_size - 256 - len(special_tokens)
-
-    # Precompute all prefixes of special tokens (excluding single bytes and full tokens)
-    # These prefixes should never be created as merge results
-    forbidden_prefixes = set()
-    for token in special_tokens:
-        token_bytes = token.encode("utf-8")
-        # Add all proper prefixes (length 2 to len-1)
-        for i in range(2, len(token_bytes)):
-            forbidden_prefixes.add(token_bytes[:i])
-
-    for _ in range(num_merges):
-        # Count all adjacent pairs
-        pair_freqs = defaultdict(int)
-        for tokens, freq in word_freqs.items():
-            if len(tokens) < 2:
-                continue
-            for i in range(len(tokens) - 1):
-                pair = (tokens[i], tokens[i + 1])
-                pair_freqs[pair] += freq
-
-        if not pair_freqs:
-            break
-
-        # Find the most frequent pair that doesn't create a forbidden prefix
-        # Sort by (-frequency, pair) to get highest freq first, then lexicographically smallest pair
-        sorted_pairs = sorted(pair_freqs.items(), key=lambda x: (-x[1], x[0]))
-        best_pair = None
-        for pair, freq in sorted_pairs:
-            merged = pair[0] + pair[1]
-            if merged not in forbidden_prefixes:
-                best_pair = pair
-                break
-
-        if best_pair is None:
-            break
-
-        # Create new merged token
-        merged_token = best_pair[0] + best_pair[1]
-
-        # Add to vocabulary and merges
-        vocab[len(vocab)] = merged_token
-        merges.append(best_pair)
-
-        # Update all word token sequences
-        new_word_freqs = defaultdict(int)
-        for tokens, freq in word_freqs.items():
-            new_tokens = []
-            i = 0
-            while i < len(tokens):
-                if i < len(tokens) - 1 and tokens[i] == best_pair[0] and tokens[i + 1] == best_pair[1]:
-                    new_tokens.append(merged_token)
-                    i += 2
-                else:
-                    new_tokens.append(tokens[i])
-                    i += 1
-            new_word_freqs[tuple(new_tokens)] += freq
-        word_freqs = new_word_freqs
-
-    return vocab, merges
+    bpe = BPE(input_path=input_path, vocab_size=vocab_size, special_tokens=special_tokens, num_precessor=6)
+    return bpe.train()
