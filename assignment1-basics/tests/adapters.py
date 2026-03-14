@@ -563,7 +563,7 @@ def get_tokenizer(
         input_path="",
         vocab_size=len(vocab),
         special_tokens=special_tokens or [],
-        num_precessor=6,
+        num_processor=6,
         vocab=vocab,
         merges=merges,
     )
@@ -598,5 +598,5 @@ def run_train_bpe(
     """
     from cs336_basics.bpe import BPE
 
-    bpe = BPE(input_path=input_path, vocab_size=vocab_size, special_tokens=special_tokens, num_precessor=6)
+    bpe = BPE(input_path=input_path, vocab_size=vocab_size, special_tokens=special_tokens, num_processor=6)
     return bpe.train()
