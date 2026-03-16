@@ -28,7 +28,11 @@ def run_linear(
     Returns:
         Float[Tensor, "... d_out"]: The transformed output of your linear module.
     """
-    return in_features @ weights.transpose(0, 1)
+    from cs336_basics.modules import Linear
+
+    linear_layer = Linear(in_features=d_in, out_features=d_out, device=in_features.device, dtype=in_features.dtype)
+    linear_layer.load_state_dict({"weight": weights})
+    return linear_layer(in_features)
 
 
 def run_embedding(
@@ -49,7 +53,13 @@ def run_embedding(
     Returns:
         Float[Tensor, "... d_model"]: Batch of embeddings returned by your Embedding layer.
     """
-    return weights[token_ids]
+    from cs336_basics.modules import Embedding
+
+    embedding_layer = Embedding(
+        num_embeddings=vocab_size, embedding_dim=d_model, device=weights.device, dtype=weights.dtype
+    )
+    embedding_layer.load_state_dict({"weight": weights})
+    return embedding_layer(token_ids)
 
 
 def run_swiglu(
@@ -74,14 +84,17 @@ def run_swiglu(
     Returns:
         Float[Tensor, "... d_model"]: Output embeddings of the same shape as the input embeddings.
     """
-    # Example:
-    # If your state dict keys match, you can use `load_state_dict()`
-    # swiglu.load_state_dict(weights)
-    # You can also manually assign the weights
-    # swiglu.w1.weight.data = w1_weight
-    # swiglu.w2.weight.data = w2_weight
-    # swiglu.w3.weight.data = w3_weight
-    raise NotImplementedError
+    from cs336_basics.modules import Swiglu
+
+    swiglu = Swiglu(d_model=d_model, d_ff=d_ff, device=in_features.device, dtype=in_features.dtype)
+    swiglu.load_state_dict(
+        {
+            "w1_weight": w1_weight,
+            "w2_weight": w2_weight,
+            "w3_weight": w3_weight,
+        }
+    )
+    return swiglu(in_features)
 
 
 def run_scaled_dot_product_attention(
@@ -102,7 +115,9 @@ def run_scaled_dot_product_attention(
     Returns:
         Float[Tensor, " ... queries d_v"]: Output of SDPA
     """
-    raise NotImplementedError
+    from cs336_basics.modules import scaled_dot_product_attention
+
+    return scaled_dot_product_attention(Q, K, V, mask)
 
 
 def run_multihead_self_attention(
@@ -136,7 +151,13 @@ def run_multihead_self_attention(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    from cs336_basics.modules import MultiHeadAttention
+
+    mha = MultiHeadAttention(
+        d_model=d_model, num_heads=num_heads, use_mask=True, device=in_features.device, dtype=in_features.dtype
+    )
+    mha.load_state_dict({"q": q_proj_weight, "k": k_proj_weight, "v": v_proj_weight, "o": o_proj_weight})
+    return mha(in_features)
 
 
 def run_multihead_self_attention_with_rope(
@@ -376,7 +397,11 @@ def run_rmsnorm(
         Float[Tensor,"... d_model"]: Tensor of with the same shape as `in_features` with the output of running
         RMSNorm of the `in_features`.
     """
-    raise NotImplementedError
+    from cs336_basics.modules import RMSNorm
+
+    rmsnorm = RMSNorm(d_model=d_model, eps=eps, device=in_features.device, dtype=in_features.dtype)
+    rmsnorm.load_state_dict({"weight": weights})
+    return rmsnorm(in_features)
 
 
 def run_silu(in_features: Float[Tensor, " ..."]) -> Float[Tensor, " ..."]:
@@ -390,7 +415,10 @@ def run_silu(in_features: Float[Tensor, " ..."]) -> Float[Tensor, " ..."]:
         Float[Tensor,"..."]: of with the same shape as `in_features` with the output of applying
         SiLU to each element.
     """
-    raise NotImplementedError
+    from cs336_basics.modules import Silu
+
+    silu = Silu(device=in_features.device, dtype=in_features.dtype)
+    return silu(in_features)
 
 
 def run_get_batch(
@@ -429,7 +457,9 @@ def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, "
         Float[Tensor, "..."]: Tensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
-    raise NotImplementedError
+    from cs336_basics.modules import softmax
+
+    return softmax(in_features, dim)
 
 
 def run_cross_entropy(

@@ -3,6 +3,7 @@ from typing import BinaryIO
 import regex as re
 from collections import defaultdict
 from multiprocessing import Pool
+from collections.abc import Iterable, Iterator
 
 
 class BPE:
@@ -30,6 +31,7 @@ class BPE:
             self.merge_dict = {v: i for i, v in enumerate(merges)}
         else:
             self.merges = []
+            self.merge_dict = {}
 
         self.pat = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
         self.regex = re.compile(self.pat)
@@ -53,8 +55,6 @@ class BPE:
 
     def _decode_chunk(self, chunk: list[int]) -> bytes:
         return b"".join(self.vocab[i] for i in chunk)
-
-    from collections.abc import Iterable, Iterator
 
     def encode_iterable(self, iterable: Iterable[str]) -> Iterator[int]:
         for text in iterable:
@@ -143,26 +143,6 @@ class BPE:
             input = tuple(new_input)
 
         return [self.reverse_vocab[t] for t in input]
-
-    def _encode_trunk(self, input_path: str | os.PathLike, start: int, end: int) -> list[int]:
-        res = []
-
-        with open(input_path, "rb") as f:
-            f.seek(start)
-            chunk = f.read(end - start).decode("utf-8", errors="replace")
-
-        parts = self.special_regex.split(chunk) if self.special_regex else [chunk]
-        for part in parts:
-            if part in self.special_tokens:
-                res.append(self.reverse_vocab[part.encode("utf-8")])
-                continue
-
-            for match in self.regex.finditer(part):
-                word = match.group()
-                word_bytes = word.encode("utf-8")
-                tokens = self._encode_to_tokens(tuple(self.vocab[b] for b in word_bytes))
-                res.extend(tokens)
-        return res
 
     # 1. Pre-tokenization
     # 2. Compute BPE merges
