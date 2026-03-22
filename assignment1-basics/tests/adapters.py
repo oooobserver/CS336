@@ -197,7 +197,20 @@ def run_multihead_self_attention_with_rope(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    from cs336_basics.modules import MultiHeadAttention
+
+    mha = MultiHeadAttention(
+        d_model=d_model,
+        num_heads=num_heads,
+        use_mask=True,
+        use_rope=True,
+        max_seq_len=max_seq_len,
+        theta=theta,
+        device=in_features.device,
+        dtype=in_features.dtype,
+    )
+    mha.load_state_dict({"q": q_proj_weight, "k": k_proj_weight, "v": v_proj_weight, "o": o_proj_weight})
+    return mha(in_features, token_positions)
 
 
 def run_rope(
@@ -219,7 +232,10 @@ def run_rope(
     Returns:
         Float[Tensor, " ... sequence_length d_k"]: Tensor with RoPEd input.
     """
-    raise NotImplementedError
+    from cs336_basics.modules import Rope
+
+    rope = Rope(d_k, theta, max_seq_len, in_query_or_key.device, in_query_or_key.dtype)
+    return rope(in_query_or_key, token_positions)
 
 
 def run_transformer_block(
@@ -292,7 +308,35 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+    from cs336_basics.modules import TransformerBlock
+
+    block = TransformerBlock(
+        d_model=d_model,
+        num_heads=num_heads,
+        d_ff=d_ff,
+        max_seq_len=max_seq_len,
+        theta=theta,
+        device=in_features.device,
+        dtype=in_features.dtype,
+    )
+    block.load_state_dict(
+        {
+            "attn.q": weights["attn.q_proj.weight"],
+            "attn.k": weights["attn.k_proj.weight"],
+            "attn.v": weights["attn.v_proj.weight"],
+            "attn.o": weights["attn.output_proj.weight"],
+            "ln1.weight": weights["ln1.weight"],
+            "ffn.w1_weight": weights["ffn.w1.weight"],
+            "ffn.w2_weight": weights["ffn.w2.weight"],
+            "ffn.w3_weight": weights["ffn.w3.weight"],
+            "ln2.weight": weights["ln2.weight"],
+        },
+        strict=False,
+    )
+
+    token_positions = torch.arange(in_features.shape[1], device=in_features.device)
+    token_positions = token_positions.unsqueeze(0).expand(in_features.shape[0], -1)
+    return block(in_features, token_positions)
 
 
 def run_transformer_lm(
